@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AR Advertisement Prototype - Three.js + MindAR</title>
+
+  <!-- Three.js -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.125.2/build/three.min.js"></script>
+
+  <!-- MindAR Three.js -->
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.5/dist/mindar-image-three.prod.js"></script>
+
+  <style>
+    body { margin: 0; overflow: hidden; }
+    video { display: none; }
+  </style>
+</head>
+<body>
+  <!-- Hidden video element -->
+  <video id="promo-video" src="./sample-video.mp4" loop playsinline muted></video>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      const mindarThree = new window.MINDAR.IMAGE.MindARThree({
+        container: document.body,
+        imageTargetSrc: "./targets.mind",  // your .mind file
+      });
+
+      const {renderer, scene, camera} = mindarThree;
+
+      // Create video texture
+      const video = document.querySelector("#promo-video");
+      const texture = new THREE.VideoTexture(video);
+      const geometry = new THREE.PlaneGeometry(1, 0.6);
+      const material = new THREE.MeshBasicMaterial({ map: texture });
+      const plane = new THREE.Mesh(geometry, material);
+
+      // Anchor to target 0
+      const anchor = mindarThree.addAnchor(0);
+      anchor.group.add(plane);
+
+      // Start AR
+      await mindarThree.start();
+
+      // Render loop
+      renderer.setAnimationLoop(() => {
+        renderer.render(scene, camera);
+      });
+
+      // Play video when marker found
+      anchor.onTargetFound = () => {
+        video.play().catch(() => {
+          document.body.addEventListener("click", () => video.play(), {once: true});
+        });
+      };
+
+      // Pause video when marker lost
+      anchor.onTargetLost = () => {
+        video.pause();
+      };
+    });
+  </script>
+</body>
+</html>
