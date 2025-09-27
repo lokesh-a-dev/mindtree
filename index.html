@@ -19,6 +19,19 @@
     /* Ensure canvas is on top of camera feed */
     canvas { position: absolute; top: 0; left: 0; z-index: 1; }
     #ar-container video { position: absolute; top: 0; left: 0; z-index: 0; }
+
+    /* On-screen log */
+    #log {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      font-size: 18px;
+      background: rgba(0,0,0,0.5);
+      padding: 5px 10px;
+      border-radius: 5px;
+      z-index: 999;
+    }
   </style>
 </head>
 <body>
@@ -28,8 +41,17 @@
   <!-- Hidden promo video -->
   <video id="promo-video" src="./sample-video.mp4" loop playsinline muted></video>
 
+  <!-- On-screen log -->
+  <div id="log">Waiting for target...</div>
+
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
+
+      function log(msg) {
+        console.log(msg);
+        document.getElementById("log").innerText = msg;
+      }
+
       const mindarThree = new window.MINDAR.IMAGE.MindARThree({
         container: document.querySelector("#ar-container"),
         imageTargetSrc: "./targets.mind",
@@ -58,7 +80,7 @@
 
       // Play promo video when target is found
       anchor.onTargetFound = () => {
-        console.log("Target Found ✅");
+        log("Target Found ✅");
         promoVideo.play().catch(() => {
           document.body.addEventListener("click", () => promoVideo.play(), {once: true});
         });
@@ -66,7 +88,7 @@
 
       // Pause promo video when target is lost
       anchor.onTargetLost = () => {
-        console.log("Target Lost ⛔");
+        log("Target Lost ⛔");
         promoVideo.pause();
       };
     });
