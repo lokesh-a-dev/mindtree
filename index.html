@@ -11,7 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.5/dist/mindar-image-three.prod.js"></script>
 
   <style>
-    body { margin: 0; overflow: hidden; }
+    body { margin: 0; overflow: hidden; background: black; }
     video { display: none; }
   </style>
 </head>
@@ -23,10 +23,13 @@
     document.addEventListener("DOMContentLoaded", async () => {
       const mindarThree = new window.MINDAR.IMAGE.MindARThree({
         container: document.body,
-        imageTargetSrc: "./targets.mind",  // your .mind file
+        imageTargetSrc: "./targets.mind",
       });
 
       const {renderer, scene, camera} = mindarThree;
+
+      // ✅ Ensure renderer canvas is visible
+      document.body.appendChild(renderer.domElement);
 
       // Create video texture
       const video = document.querySelector("#promo-video");
