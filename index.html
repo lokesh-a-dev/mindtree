@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>AR Advertisement Prototype - Three.js + MindAR</title>
+  <title>AR Video on Target - MindAR + Three.js</title>
 
   <!-- Three.js -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.125.2/build/three.min.js"></script>
@@ -12,54 +12,18 @@
 
   <style>
     body { margin: 0; overflow: hidden; background: black; }
-
-    /* Hide promo video, not camera feed */
-    #promo-video { display: none; }
-
-    /* Ensure canvas is on top of camera feed */
+    #promo-video { display: none; } /* hidden video element */
     canvas { position: absolute; top: 0; left: 0; z-index: 1; }
     #ar-container video { position: absolute; top: 0; left: 0; z-index: 0; }
-
-    /* On-screen log */
-    #log {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      color: white;
-      font-size: 18px;
-      background: rgba(0,0,0,0.5);
-      padding: 5px 10px;
-      border-radius: 5px;
-      z-index: 999;
-    }
-
-    /* Start AR button overlay */
-    #start-btn {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-size: 24px;
-      padding: 12px 24px;
-      background: rgba(255,255,255,0.8);
-      border: none;
-      border-radius: 5px;
-      z-index: 1000;
-      cursor: pointer;
-    }
+    #log { position: absolute; top: 10px; left: 10px; color: white; font-size: 18px; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 5px; z-index: 999; }
+    #start-btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 24px; padding: 12px 24px; background: rgba(255,255,255,0.8); border: none; border-radius: 5px; z-index: 1000; cursor: pointer; }
   </style>
 </head>
 <body>
-  <!-- Container for MindAR -->
+
   <div id="ar-container" style="position: relative; width: 100vw; height: 100vh;"></div>
-
-  <!-- Hidden promo video -->
   <video id="promo-video" src="./sample-video.mp4" loop playsinline muted></video>
-
-  <!-- On-screen log -->
   <div id="log">Waiting for target...</div>
-
-  <!-- Start AR overlay -->
   <button id="start-btn">Tap to Start AR</button>
 
   <script>
@@ -71,10 +35,10 @@
 
       function log(msg) { logEl.innerText = msg; console.log(msg); }
 
-      // Wait for first tap to unlock video playback on mobile
       startBtn.addEventListener("click", async () => {
-        await promoVideo.play().catch(()=>{}); // unlock video
-        startBtn.style.display = "none"; // hide button
+        // Unlock video on mobile
+        await promoVideo.play().catch(()=>{});
+        startBtn.style.display = "none";
 
         // Initialize MindAR
         const mindarThree = new window.MINDAR.IMAGE.MindARThree({
@@ -84,12 +48,18 @@
 
         const {renderer, scene, camera} = mindarThree;
 
-        // Create video texture and plane
+        // Create video texture
         const texture = new THREE.VideoTexture(promoVideo);
-        const geometry = new THREE.PlaneGeometry(1, 0.6);
+
+        // Match plane to target aspect ratio (adjust width/height to your target image)
+        const planeWidth = 1; 
+        const planeHeight = 0.6; 
+        const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
         const material = new THREE.MeshBasicMaterial({ map: texture });
         const plane = new THREE.Mesh(geometry, material);
-        plane.visible = false; // hide until video plays
+        plane.visible = false;
+
+        // Add plane to anchor 0
         const anchor = mindarThree.addAnchor(0);
         anchor.group.add(plane);
 
@@ -105,19 +75,20 @@
         // Render loop
         renderer.setAnimationLoop(() => renderer.render(scene, camera));
 
-        // Handle target found
+        // Target found -> play video
         anchor.onTargetFound = () => {
           log("Target Found ✅");
-          promoVideo.play().catch(()=>{}); // in case video paused
+          promoVideo.play().catch(()=>{});
         };
 
-        // Handle target lost
+        // Target lost -> pause video
         anchor.onTargetLost = () => {
           log("Target Lost ⛔");
           promoVideo.pause();
           plane.visible = false;
         };
       });
+
     });
   </script>
 </body>
