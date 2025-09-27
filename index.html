@@ -12,34 +12,43 @@
 
   <style>
     body { margin: 0; overflow: hidden; background: black; }
-    video { display: none; }
+
+    /* Only hide promo video, not the camera feed */
+    #promo-video { display: none; }
+
+    /* Ensure canvas is on top of camera feed */
+    canvas { position: absolute; top: 0; left: 0; z-index: 1; }
+    #ar-container video { position: absolute; top: 0; left: 0; z-index: 0; }
   </style>
 </head>
 <body>
-  <!-- Hidden video element -->
+  <!-- Container for MindAR -->
+  <div id="ar-container" style="position: relative; width: 100vw; height: 100vh;"></div>
+
+  <!-- Hidden promo video -->
   <video id="promo-video" src="./sample-video.mp4" loop playsinline muted></video>
 
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
       const mindarThree = new window.MINDAR.IMAGE.MindARThree({
-        container: document.body,
+        container: document.querySelector("#ar-container"),
         imageTargetSrc: "./targets.mind",
       });
 
       const {renderer, scene, camera} = mindarThree;
 
-      // Create video texture
-      const video = document.querySelector("#promo-video");
-      const texture = new THREE.VideoTexture(video);
+      // Create video texture for AR plane
+      const promoVideo = document.querySelector("#promo-video");
+      const texture = new THREE.VideoTexture(promoVideo);
       const geometry = new THREE.PlaneGeometry(1, 0.6);
       const material = new THREE.MeshBasicMaterial({ map: texture });
       const plane = new THREE.Mesh(geometry, material);
 
-      // Anchor to target 0
+      // Anchor AR plane to target 0
       const anchor = mindarThree.addAnchor(0);
       anchor.group.add(plane);
 
-      // Start AR
+      // Start AR (camera feed starts automatically)
       await mindarThree.start();
 
       // Render loop
@@ -47,18 +56,18 @@
         renderer.render(scene, camera);
       });
 
-      // Play video when marker found
+      // Play promo video when target is found
       anchor.onTargetFound = () => {
         console.log("Target Found ✅");
-        video.play().catch(() => {
-          document.body.addEventListener("click", () => video.play(), {once: true});
+        promoVideo.play().catch(() => {
+          document.body.addEventListener("click", () => promoVideo.play(), {once: true});
         });
       };
 
-      // Pause video when marker lost
+      // Pause promo video when target is lost
       anchor.onTargetLost = () => {
         console.log("Target Lost ⛔");
-        video.pause();
+        promoVideo.pause();
       };
     });
   </script>
