@@ -65,10 +65,17 @@
       const geometry = new THREE.PlaneGeometry(1, 0.6);
       const material = new THREE.MeshBasicMaterial({ map: texture });
       const plane = new THREE.Mesh(geometry, material);
+      plane.visible = false; // hide initially until video plays
 
       // Anchor AR plane to target 0
       const anchor = mindarThree.addAnchor(0);
       anchor.group.add(plane);
+
+      // Show plane when video starts playing
+      promoVideo.addEventListener("play", () => {
+        plane.visible = true;
+        log("Video Playing 🎬");
+      });
 
       // Start AR (camera feed starts automatically)
       await mindarThree.start();
@@ -82,7 +89,13 @@
       anchor.onTargetFound = () => {
         log("Target Found ✅");
         promoVideo.play().catch(() => {
-          document.body.addEventListener("click", () => promoVideo.play(), {once: true});
+          // Mobile autoplay blocked, wait for first tap
+          log("Tap the screen to play video");
+          const handler = () => {
+            promoVideo.play().then(() => log("Video Playing 🎬")).catch(() => log("Playback failed"));
+            document.body.removeEventListener("click", handler);
+          };
+          document.body.addEventListener("click", handler);
         });
       };
 
@@ -90,6 +103,7 @@
       anchor.onTargetLost = () => {
         log("Target Lost ⛔");
         promoVideo.pause();
+        plane.visible = false;
       };
     });
   </script>
