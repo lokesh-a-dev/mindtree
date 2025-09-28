@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>AR Video on Target - MindAR + Three.js</title>
+  <title>AR Advertisement Prototype - Three.js + MindAR</title>
 
   <!-- Three.js -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.125.2/build/three.min.js"></script>
@@ -12,83 +12,77 @@
 
   <style>
     body { margin: 0; overflow: hidden; background: black; }
-    #promo-video { display: none; } /* hidden video element */
-    canvas { position: absolute; top: 0; left: 0; z-index: 1; }
-    #ar-container video { position: absolute; top: 0; left: 0; z-index: 0; }
-    #log { position: absolute; top: 10px; left: 10px; color: white; font-size: 18px; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 5px; z-index: 999; }
-    #start-btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 24px; padding: 12px 24px; background: rgba(255,255,255,0.8); border: none; border-radius: 5px; z-index: 1000; cursor: pointer; }
+    #promo-video { display: none; }
+    canvas { position: absolute; top: 0; left: 0; }
+    #log {
+      position: absolute; top: 10px; left: 10px;
+      color: white; background: rgba(0,0,0,0.6);
+      padding: 5px 10px; border-radius: 5px;
+      font-family: monospace; z-index: 999;
+    }
   </style>
 </head>
 <body>
-
-  <div id="ar-container" style="position: relative; width: 100vw; height: 100vh;"></div>
-  <video id="promo-video" src="./sample-video.mp4" loop playsinline muted></video>
   <div id="log">Waiting for target...</div>
-  <button id="start-btn">Tap to Start AR</button>
+
+  <!-- Video element -->
+  <video id="promo-video" src="./sample-video.mp4" loop playsinline muted></video>
 
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
+      const log = (msg) => { 
+        console.log(msg);
+        document.getElementById("log").innerText = msg;
+      };
 
-      const logEl = document.getElementById("log");
-      const promoVideo = document.getElementById("promo-video");
-      const startBtn = document.getElementById("start-btn");
-
-      function log(msg) { logEl.innerText = msg; console.log(msg); }
-
-      startBtn.addEventListener("click", async () => {
-        // Unlock video on mobile
-        await promoVideo.play().catch(()=>{});
-        startBtn.style.display = "none";
-
-        // Initialize MindAR
-        const mindarThree = new window.MINDAR.IMAGE.MindARThree({
-          container: document.getElementById("ar-container"),
-          imageTargetSrc: "./targets.mind",
-        });
-
-        const {renderer, scene, camera} = mindarThree;
-
-        // Create video texture
-        const texture = new THREE.VideoTexture(promoVideo);
-
-        // Match plane to target aspect ratio (adjust width/height to your target image)
-        const planeWidth = 1; 
-        const planeHeight = 0.6; 
-        const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
-        const material = new THREE.MeshBasicMaterial({ map: texture });
-        const plane = new THREE.Mesh(geometry, material);
-        plane.visible = false;
-
-        // Add plane to anchor 0
-        const anchor = mindarThree.addAnchor(0);
-        anchor.group.add(plane);
-
-        // Show plane when video starts
-        promoVideo.addEventListener("play", () => {
-          plane.visible = true;
-          log("Video Playing 🎬");
-        });
-
-        // Start AR session
-        await mindarThree.start();
-
-        // Render loop
-        renderer.setAnimationLoop(() => renderer.render(scene, camera));
-
-        // Target found -> play video
-        anchor.onTargetFound = () => {
-          log("Target Found ✅");
-          promoVideo.play().catch(()=>{});
-        };
-
-        // Target lost -> pause video
-        anchor.onTargetLost = () => {
-          log("Target Lost ⛔");
-          promoVideo.pause();
-          plane.visible = false;
-        };
+      const mindarThree = new window.MINDAR.IMAGE.MindARThree({
+        container: document.body,
+        imageTargetSrc: "./targets.mind",
       });
 
+      const {renderer, scene, camera} = mindarThree;
+
+      const promoVideo = document.querySelector("#promo-video");
+
+      // Make video texture
+      const texture = new THREE.VideoTexture(promoVideo);
+      texture.needsUpdate = true;
+      const geometry = new THREE.PlaneGeometry(1, 0.6);
+      const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+      const plane = new THREE.Mesh(geometry, material);
+
+      const anchor = mindarThree.addAnchor(0);
+      anchor.group.add(plane);
+
+      await mindarThree.start();
+
+      renderer.setAnimationLoop(() => {
+        if (promoVideo.readyState >= 2) {
+          texture.needsUpdate = true; // Keep updating video frames
+        }
+        renderer.render(scene, camera);
+      });
+
+      // Play when target found
+      anchor.onTargetFound = async () => {
+        log("Target Found ✅ - trying to play video...");
+        try {
+          await promoVideo.play();
+          log("Video is playing 🎬");
+        } catch (err) {
+          log("Autoplay blocked - tap screen to start");
+          document.body.addEventListener("click", () => {
+            promoVideo.play();
+            log("Video started after tap 🎬");
+          }, {once: true});
+        }
+      };
+
+      // Pause when lost
+      anchor.onTargetLost = () => {
+        log("Target Lost ⛔ - video paused");
+        promoVideo.pause();
+      };
     });
   </script>
 </body>
