@@ -19,6 +19,7 @@
       color: white; background: rgba(0,0,0,0.6);
       padding: 5px 10px; border-radius: 5px;
       font-family: monospace; z-index: 999;
+      white-space: pre-line;
     }
   </style>
 </head>
@@ -30,9 +31,10 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
+      const logBox = document.getElementById("log");
       const log = (msg) => { 
         console.log(msg);
-        document.getElementById("log").innerText = msg;
+        logBox.innerText = msg;
       };
 
       const mindarThree = new window.MINDAR.IMAGE.MindARThree({
@@ -41,14 +43,17 @@
       });
 
       const {renderer, scene, camera} = mindarThree;
-
       const promoVideo = document.querySelector("#promo-video");
 
-      // Make video texture
+      // Video texture
       const texture = new THREE.VideoTexture(promoVideo);
-      texture.needsUpdate = true;
-      const geometry = new THREE.PlaneGeometry(1, 0.6);
-      const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
+      const geometry = new THREE.PlaneGeometry(2, 1.2); // Bigger plane to test
+      const material = new THREE.MeshBasicMaterial({ 
+        map: texture, 
+        side: THREE.DoubleSide, 
+        transparent: true, 
+        opacity: 1 
+      });
       const plane = new THREE.Mesh(geometry, material);
 
       const anchor = mindarThree.addAnchor(0);
@@ -57,8 +62,9 @@
       await mindarThree.start();
 
       renderer.setAnimationLoop(() => {
-        if (promoVideo.readyState >= 2) {
-          texture.needsUpdate = true; // Keep updating video frames
+        if (!promoVideo.paused && promoVideo.readyState >= 2) {
+          texture.needsUpdate = true;
+          log("Video running 🎬 | Time: " + promoVideo.currentTime.toFixed(2) + "s");
         }
         renderer.render(scene, camera);
       });
@@ -70,7 +76,7 @@
           await promoVideo.play();
           log("Video is playing 🎬");
         } catch (err) {
-          log("Autoplay blocked - tap screen to start");
+          log("Autoplay blocked 🚫 - tap screen to start");
           document.body.addEventListener("click", () => {
             promoVideo.play();
             log("Video started after tap 🎬");
