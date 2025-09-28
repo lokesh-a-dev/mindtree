@@ -27,7 +27,7 @@
   <div id="log">Waiting for target...</div>
 
   <!-- Video element -->
-  <video id="promo-video" src="./sample-video.mp4" loop playsinline muted></video>
+  <video id="promo-video" src="./sample-video.mp4" autoplay loop playsinline muted></video>
 
   <script>
     document.addEventListener("DOMContentLoaded", async () => {
@@ -45,14 +45,24 @@
       const {renderer, scene, camera} = mindarThree;
       const promoVideo = document.querySelector("#promo-video");
 
-      // Video texture
+      // Force video attributes for autoplay safety
+      promoVideo.setAttribute("playsinline", "");
+      promoVideo.setAttribute("muted", "");
+      promoVideo.muted = true;
+      promoVideo.autoplay = true;
+      promoVideo.load();
+
+      // Create video texture
       const texture = new THREE.VideoTexture(promoVideo);
-      const geometry = new THREE.PlaneGeometry(2, 1.2); // Bigger plane to test
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      texture.format = THREE.RGBFormat;
+
+      const geometry = new THREE.PlaneGeometry(2, 1.2);
       const material = new THREE.MeshBasicMaterial({ 
         map: texture, 
         side: THREE.DoubleSide, 
-        transparent: true, 
-        opacity: 1 
+        transparent: true 
       });
       const plane = new THREE.Mesh(geometry, material);
 
@@ -62,7 +72,7 @@
       await mindarThree.start();
 
       renderer.setAnimationLoop(() => {
-        if (!promoVideo.paused && promoVideo.readyState >= 2) {
+        if (!promoVideo.paused && !promoVideo.ended && promoVideo.readyState >= 2) {
           texture.needsUpdate = true;
           log("Video running 🎬 | Time: " + promoVideo.currentTime.toFixed(2) + "s");
         }
