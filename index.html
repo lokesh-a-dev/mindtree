@@ -8,7 +8,6 @@
     #container { width: 100%; height: 100vh; }
   </style>
 
-  <!-- Import map for Three.js and MindAR -->
   <script type="importmap">
   {
     "imports": {
@@ -27,13 +26,17 @@
     import { MindARThree } from 'mindar-image-three';
 
     document.addEventListener("DOMContentLoaded", async () => {
-      // Setup MindAR
+      // Setup MindAR with transparent renderer
       const mindarThree = new MindARThree({
         container: document.querySelector("#container"),
-        imageTargetSrc: "./targets.mind",   // <-- your .mind file
+        imageTargetSrc: "./targets.mind",
+        rendererOptions: { alpha: true } // enable transparency
       });
 
       const { renderer, scene, camera } = mindarThree;
+
+      // Set transparent background
+      renderer.setClearColor(0x000000, 0);
 
       // Light
       const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
@@ -42,22 +45,21 @@
       // Anchor for target[0]
       const anchor = mindarThree.addAnchor(0);
 
-      // Create HTML video element
-      const video = document.createElement("video");
-      video.src = "./sample-video.mp4";   // <-- your video file
-      video.crossOrigin = "anonymous";
-      video.loop = true;
-      video.muted = true;  // autoplay works only if muted
-      video.playsInline = true;
-      await video.play();  // start playing immediately
+      // Video
+      const video1 = document.createElement("video");
+      video1.src = "./sample-video.mp4"; 
+      video1.crossOrigin = "anonymous";
+      video1.loop = true;
+      video1.muted = true;
+      video1.playsInline = true;
+      await video1.play();
 
-      // Use video as texture
-      const texture = new THREE.VideoTexture(video);
-      const geometry = new THREE.PlaneGeometry(1, 0.7); // adjust size to your target
-      const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
-      const plane = new THREE.Mesh(geometry, material);
-
-      anchor.group.add(plane);
+      const texture1 = new THREE.VideoTexture(video1);
+      const geometry1 = new THREE.PlaneGeometry(1, 0.7);
+      const material1 = new THREE.MeshBasicMaterial({ map: texture1, side: THREE.DoubleSide });
+      const plane1 = new THREE.Mesh(geometry1, material1);
+      plane1.position.set(0, 0, 0);
+      anchor.group.add(plane1);
 
       // Start AR
       await mindarThree.start();
