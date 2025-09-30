@@ -95,14 +95,6 @@
 
       const { renderer, scene, camera } = mindarThree;
       
-// Ensure renderer covers container
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.domElement.style.position = 'absolute';
-renderer.domElement.style.top = '0';
-renderer.domElement.style.left = '0';
-renderer.domElement.style.width = '100%';
-renderer.domElement.style.height = '100%';
-document.querySelector('#ar-container').appendChild(renderer.domElement);
 
       // Transparent background
       renderer.setClearColor(0x000000, 0);
