@@ -145,6 +145,9 @@ canvas {
       // Start engine
       await mindarThree.start();
       renderer.setAnimationLoop(() => {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+
         renderer.render(scene, camera);
       });
 
