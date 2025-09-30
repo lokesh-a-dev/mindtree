@@ -1,158 +1,4 @@
-<!-- <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <title>MindAR — Play Video on Image Match</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta http-equiv="origin-trial" content="">
-  <style>
-    html,body { height:100%; margin:0; background:#000; font-family:Arial,Helvetica,sans-serif; }
-    #ar-container { width:100%; height:100vh; overflow:hidden; position:relative; }
-    #fallback {
-      position:absolute; left:12px; top:12px; z-index:12; color:white;
-      background: rgba(0,0,0,0.4); padding:8px 10px; border-radius:6px;
-      font-size:14px;
-    }
-    #start-btn {
-      position:absolute; left:12px; bottom:12px; z-index:12;
-      padding:10px 14px; background:#1a73e8; color:white; border:none; border-radius:6px;
-      cursor:pointer; font-weight:600;
-    }
-    video#sampleVideo { display:none; }
-  </style>
-   Use jsDelivr to avoid unpkg QUIC issues and add import-map shim for broader support 
-  <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.min.js"></script>
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
-      "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
-    }
-  }
-  </script>
-</head>
-<body>
-  <div id="ar-container">
-    <div id="fallback">Point your camera at the image target to play the video.</div>
-    <button id="start-btn">Start AR</button>
-  </div>
-
-   Local video file (place sample-video.mp4 next to this HTML) 
-  <video id="sampleVideo" playsinline webkit-playsinline loop muted crossorigin="anonymous">
-    <source src="sample-video.mp4" type="video/mp4">
-    Your browser does not support HTML5 video.
-  </video>
-
-  <script type="module">
-    import * as THREE from 'three';
-    import { MindARThree } from 'mindar-image-three';
-
-    const startBtn = document.getElementById('start-btn');
-    const videoEl = document.getElementById('sampleVideo');
-
-    function assertSecureContext() {
-      const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-      const isSecure = location.protocol === 'https:';
-      if (!isSecure && !isLocalhost) {
-        throw new Error('Camera requires https or http://localhost');
-      }
-    }
-
-    async function startAR() {
-      startBtn.disabled = true;
-      startBtn.textContent = 'Starting...';
-
-      assertSecureContext();
-
-      // Prepare HTML video as texture
-      videoEl.muted = true;
-      videoEl.loop = false; // we’ll reset on target found
-      // videoEl.load(); // not strictly necessary; ensure <source> is correct
-
-      // MindAR setup
-      const mindarThree = new MindARThree({
-        container: document.querySelector('#ar-container'),
-        imageTargetSrc: './target.mind', // ensure this file exists next to index.html
-        maxTrack: 1,
-      });
-
-      const { renderer, scene, camera } = mindarThree;
-
-      // Basic lighting
-      const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
-      scene.add(light);
-
-      // Video texture
-      const texture = new THREE.VideoTexture(videoEl);
-      texture.minFilter = THREE.LinearFilter;
-      texture.magFilter = THREE.LinearFilter;
-
-      // Plane sized roughly 16:9; adjust to match your target’s design
-      const planeGeometry = new THREE.PlaneGeometry(1, 0.5625);
-      const planeMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-      const planeMesh = new THREE.Mesh(planeGeometry, planeMaterial);
-      planeMesh.visible = false;
-
-      // Anchor on first target
-      const anchor = mindarThree.addAnchor(0);
-      anchor.group.add(planeMesh);
-
-      anchor.onTargetFound = () => {
-        console.log('[AR] target found');
-        planeMesh.visible = true;
-        try { videoEl.currentTime = 0; } catch {}
-        const p = videoEl.play();
-        if (p && typeof p.catch === 'function') {
-          p.catch((err) => {
-            console.warn('[AR] Autoplay blocked; waiting for user gesture to unmute/play.', err);
-          });
-        }
-      };
-
-      anchor.onTargetLost = () => {
-        console.log('[AR] target lost');
-        planeMesh.visible = false;
-        try { videoEl.pause(); videoEl.currentTime = 0; } catch {}
-      };
-
-      // Start engine
-      await mindarThree.start();
-      renderer.setAnimationLoop(() => {
-        renderer.render(scene, camera);
-      });
-
-      // Hide UI
-      startBtn.style.display = 'none';
-      const fb = document.getElementById('fallback');
-      if (fb) fb.style.display = 'none';
-
-      // Allow one-tap unmute on iOS/Android if needed
-      window.addEventListener('click', () => {
-        if (videoEl.muted) {
-          videoEl.muted = false;
-          console.log('[AR] Video unmuted by user.');
-        }
-      }, { once: true });
-    }
-
-    startBtn.addEventListener('click', async () => {
-      try {
-        await startAR();
-      } catch (err) {
-        console.error('[AR] Start error:', err);
-        alert(
-          'Could not start the camera or AR engine.\n' +
-          'Use https or http://localhost and allow camera access.\n\n' +
-          'Error: ' + (err?.message || err)
-        );
-        startBtn.disabled = false;
-        startBtn.textContent = 'Start AR';
-      }
-    });
-  </script>
-</body>
-</html> -->
+<!-- 
 
 
 <!doctype html>
@@ -304,6 +150,191 @@ canvas {
       renderer.setAnimationLoop(() => {
         renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
+
+        renderer.render(scene, camera);
+      });
+
+      // Hide UI
+      startBtn.style.display = 'none';
+      const fb = document.getElementById('fallback');
+      if (fb) fb.style.display = 'none';
+
+      // Allow one-tap unmute on iOS/Android if needed
+      window.addEventListener('click', () => {
+        if (videoEl.muted) {
+          videoEl.muted = false;
+          console.log('[AR] Video unmuted by user.');
+        }
+      }, { once: true });
+    }
+
+    startBtn.addEventListener('click', async () => {
+      try {
+        await startAR();
+      } catch (err) {
+        console.error('[AR] Start error:', err);
+        alert(
+          'Could not start the camera or AR engine.\n' +
+          'Use https or http://localhost and allow camera access.\n\n' +
+          'Error: ' + (err?.message || err)
+        );
+        startBtn.disabled = false;
+        startBtn.textContent = 'Start AR';
+      }
+    });
+  </script>
+</body>
+</html> -->
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>MindAR — Play Video on Image Match</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="origin-trial" content="">
+  <style>
+    html,body { height:100%; margin:0; background:#000; font-family:Arial,Helvetica,sans-serif; }
+    #ar-container { width:100%; height:100vh; overflow:hidden; position:relative; }
+    #fallback {
+      position:absolute; left:12px; top:12px; z-index:12; color:white;
+      background: rgba(0,0,0,0.4); padding:8px 10px; border-radius:6px;
+      font-size:14px;
+    }
+    #start-btn {
+      position:absolute; left:12px; bottom:12px; z-index:12;
+      padding:10px 14px; background:#1a73e8; color:white; border:none; border-radius:6px;
+      cursor:pointer; font-weight:600;
+    }
+    video#sampleVideo { display:none; }
+
+    html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+}
+
+#ar-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+canvas {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+  </style>
+   Use jsDelivr to avoid unpkg QUIC issues and add import-map shim for broader support 
+  <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.min.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="ar-container">
+    <div id="fallback">Point your camera at the image target to play the video.</div>
+    <button id="start-btn">Start AR</button>
+  </div>
+
+   Local video file (place sample-video.mp4 next to this HTML) 
+  <video id="sampleVideo" playsinline webkit-playsinline loop muted crossorigin="anonymous">
+    <source src="sample-video.mp4" type="video/mp4">
+    Your browser does not support HTML5 video.
+  </video>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { MindARThree } from 'mindar-image-three';
+
+    const startBtn = document.getElementById('start-btn');
+    const videoEl = document.getElementById('sampleVideo');
+
+    function assertSecureContext() {
+      const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+      const isSecure = location.protocol === 'https:';
+      if (!isSecure && !isLocalhost) {
+        throw new Error('Camera requires https or http://localhost');
+      }
+    }
+
+    async function startAR() {
+      startBtn.disabled = true;
+      startBtn.textContent = 'Starting...';
+
+      assertSecureContext();
+
+      // Prepare HTML video as texture
+      videoEl.muted = true;
+      videoEl.loop = false; // we’ll reset on target found
+      // videoEl.load(); // not strictly necessary; ensure <source> is correct
+
+      // MindAR setup
+      const mindarThree = new MindARThree({
+        container: document.querySelector('#ar-container'),
+        imageTargetSrc: './target.mind', // ensure this file exists next to index.html
+        maxTrack: 1,
+      });
+
+      const { renderer, scene, camera } = mindarThree;
+
+      // Basic lighting
+      const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+      scene.add(light);
+
+      // Video texture
+      const texture = new THREE.VideoTexture(videoEl);
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+
+      // Plane sized roughly 16:9; adjust to match your target’s design
+      const planeGeometry = new THREE.PlaneGeometry(1, 0.5625);
+      const planeMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+      const planeMesh = new THREE.Mesh(planeGeometry, planeMaterial);
+      planeMesh.visible = false;
+
+      // Anchor on first target
+      const anchor = mindarThree.addAnchor(0);
+      anchor.group.add(planeMesh);
+
+      anchor.onTargetFound = () => {
+        console.log('[AR] target found');
+        planeMesh.visible = true;
+        try { videoEl.currentTime = 0; } catch {}
+        const p = videoEl.play();
+        if (p && typeof p.catch === 'function') {
+          p.catch((err) => {
+            console.warn('[AR] Autoplay blocked; waiting for user gesture to unmute/play.', err);
+          });
+        }
+      };
+
+      anchor.onTargetLost = () => {
+        console.log('[AR] target lost');
+        planeMesh.visible = false;
+        try { videoEl.pause(); videoEl.currentTime = 0; } catch {}
+      };
+
+      // Start engine
+      await mindarThree.start();
+      renderer.setAnimationLoop(() => {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
 
         renderer.render(scene, camera);
       });
