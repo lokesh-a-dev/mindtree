@@ -1,13 +1,73 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
-   <head>
-      <meta charset="UTF-8">
-      <title>MindAR Image Tracking with Video Overlay</title>
-      <style> body { margin: 0; overflow: hidden; } #container { width: 100%; height: 100vh; } </style>
-      <!-- Import map for Three.js and MindAR --> <script type="importmap"> { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/", "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js" } } </script> 
-   </head>
-   <body>
-      <div id="container"></div>
-      <script type="module"> import * as THREE from 'three'; import { MindARThree } from 'mindar-image-three'; document.addEventListener("DOMContentLoaded", async () => { // Setup MindAR const mindarThree = new MindARThree({ container: document.querySelector("#container"), imageTargetSrc: "./targets.mind", // <-- your .mind file }); const { renderer, scene, camera } = mindarThree; // Light const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1); scene.add(light); // Anchor for target[0] const anchor = mindarThree.addAnchor(0); // Create HTML video element const video = document.createElement("video"); video.src = "./sample-video.mp4"; // <-- your video file video.crossOrigin = "anonymous"; video.loop = true; video.muted = true; // autoplay works only if muted video.playsInline = true; await video.play(); // start playing immediately // Use video as texture const texture = new THREE.VideoTexture(video); const geometry = new THREE.PlaneGeometry(1, 0.7); // adjust size to your target const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide }); const plane = new THREE.Mesh(geometry, material); anchor.group.add(plane); // Start AR await mindarThree.start(); renderer.setAnimationLoop(() => { renderer.render(scene, camera); }); }); </script> 
-   </body>
-   </html
+<head>
+  <meta charset="UTF-8">
+  <title>MindAR Image Tracking with Video Overlay</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #container { width: 100%; height: 100vh; }
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+      "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="container"></div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { MindARThree } from 'mindar-image-three';
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      // Setup MindAR with transparent renderer
+      const mindarThree = new MindARThree({
+        container: document.querySelector("#container"),
+        imageTargetSrc: "./targets.mind",
+        rendererOptions: { alpha: true } // enable transparency
+      });
+
+      const { renderer, scene, camera } = mindarThree;
+
+      // Set transparent background
+      renderer.setClearColor(0x000000, 0);
+
+      // Light
+      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
+      scene.add(light);
+
+      // Anchor for target[0]
+      const anchor = mindarThree.addAnchor(0);
+
+      // Video
+      const video1 = document.createElement("video");
+      video1.src = "./sample-video.mp4"; 
+      video1.crossOrigin = "anonymous";
+      video1.loop = true;
+      video1.muted = true;
+      video1.playsInline = true;
+      await video1.play();
+
+      const texture1 = new THREE.VideoTexture(video1);
+      const geometry1 = new THREE.PlaneGeometry(1, 0.7);
+      const material1 = new THREE.MeshBasicMaterial({ map: texture1, side: THREE.DoubleSide });
+      const plane1 = new THREE.Mesh(geometry1, material1);
+      plane1.position.set(0, 0, 0);
+      anchor.group.add(plane1);
+
+      // Start AR
+      await mindarThree.start();
+
+      renderer.setAnimationLoop(() => {
+        renderer.render(scene, camera);
+      });
+    });
+  </script>
+</body>
+</html>
