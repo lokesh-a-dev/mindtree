@@ -2,9 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>MindAR — Show 3D Model on Image</title>
+  <title>MindAR — Animated 3D Model</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta http-equiv="origin-trial" content="">
   <style>
     html,body { height:100%; margin:0; background:#000; font-family:Arial,Helvetica,sans-serif; }
     #ar-container { width:100%; height:100vh; overflow:hidden; position:relative; }
@@ -18,28 +17,9 @@
       padding:10px 14px; background:#1a73e8; color:white; border:none; border-radius:6px;
       cursor:pointer; font-weight:600;
     }
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      overflow: hidden;
-      background: #000;
-    }
-    #ar-container {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-    }
-    canvas {
-      position: absolute !important;
-      top: 0;
-      left: 0;
-      width: 100% !important;
-      height: 100% !important;
-    }
+    html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#000; }
+    #ar-container { position: fixed; top:0; left:0; width:100%; height:100%; overflow:hidden; }
+    canvas { position:absolute !important; top:0; left:0; width:100% !important; height:100% !important; }
   </style>
   <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.min.js"></script>
   <script type="importmap">
@@ -81,7 +61,7 @@
 
       const mindarThree = new MindARThree({
         container: document.querySelector('#ar-container'),
-        imageTargetSrc: './target.mind', // your target file
+        imageTargetSrc: './target.mind',
         maxTrack: 1,
       });
 
@@ -94,41 +74,56 @@
       // Anchor for the target
       const anchor = mindarThree.addAnchor(0);
 
-      // let model = null;
-let mixer = null;  // Animation mixer
-const clock = new THREE.Clock();
+      // Load animated 3D model
+      let model = null;
+      let mixer = null;
+      const clock = new THREE.Clock();
 
-loader.load(
-  './animated_model.glb', // your animated GLB
-  (gltf) => {
-    model = gltf.scene;
-    model.scale.set(0.3, 0.3, 0.3);
-    model.visible = false;
-    anchor.group.add(model);
+      const loader = new GLTFLoader();
+      loader.load(
+        './mode.glb', // put your animated GLB file here
+        (gltf) => {
+          model = gltf.scene;
+          model.scale.set(0.3, 0.3, 0.3);
+          model.rotation.y = Math.PI;
+          model.visible = false;
+          anchor.group.add(model);
 
-    // Setup animations if present
-    if (gltf.animations && gltf.animations.length) {
-      mixer = new THREE.AnimationMixer(model);
-      gltf.animations.forEach((clip) => {
-        const action = mixer.clipAction(clip);
-        action.play();      // start animation immediately
-        action.loop = THREE.LoopRepeat; // loop continuously
+          // Check if there are animations
+          if (gltf.animations && gltf.animations.length) {
+            mixer = new THREE.AnimationMixer(model);
+            gltf.animations.forEach((clip) => {
+              const action = mixer.clipAction(clip);
+              action.play();
+              action.loop = THREE.LoopRepeat; // continuous loop
+            });
+          }
+        },
+        undefined,
+        (error) => {
+          console.error('[AR] Model loading error:', error);
+        }
+      );
+
+      // Show/hide model when target found/lost
+      anchor.onTargetFound = () => {
+        console.log('[AR] Target found');
+        if (model) model.visible = true;
+      };
+      anchor.onTargetLost = () => {
+        console.log('[AR] Target lost');
+        if (model) model.visible = false;
+      };
+
+      // Start engine
+      await mindarThree.start();
+      renderer.setAnimationLoop(() => {
+        const delta = clock.getDelta();
+        if (mixer) mixer.update(delta); // updates animation
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.render(scene, camera);
       });
-    }
-  },
-  undefined,
-  (error) => {
-    console.error('[AR] Model loading error:', error);
-  }
-);
-
-// In your render loop, update mixer
-renderer.setAnimationLoop(() => {
-  const delta = clock.getDelta();
-  if (mixer) mixer.update(delta);   // updates animation
-  renderer.render(scene, camera);
-});
-
 
       // Hide UI
       startBtn.style.display = 'none';
@@ -142,9 +137,7 @@ renderer.setAnimationLoop(() => {
       } catch (err) {
         console.error('[AR] Start error:', err);
         alert(
-          'Could not start the camera or AR engine.\n' +
-          'Use https or http://localhost and allow camera access.\n\n' +
-          'Error: ' + (err?.message || err)
+          'Could not start the camera or AR engine.\nUse https or http://localhost and allow camera access.\n\nError: ' + (err?.message || err)
         );
         startBtn.disabled = false;
         startBtn.textContent = 'Start AR';
