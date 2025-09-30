@@ -5,22 +5,60 @@
   <title>MindAR — Animated 3D Model</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    html,body { height:100%; margin:0; background:#000; font-family:Arial,Helvetica,sans-serif; }
-    #ar-container { width:100%; height:100vh; overflow:hidden; position:relative; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    #ar-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    canvas {
+      position: absolute !important;
+      top: 0;
+      left: 0;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
     #fallback {
-      position:absolute; left:12px; top:12px; z-index:12; color:white;
-      background: rgba(0,0,0,0.4); padding:8px 10px; border-radius:6px;
-      font-size:14px;
+      position: absolute;
+      left: 12px;
+      top: 12px;
+      z-index: 12;
+      color: white;
+      background: rgba(0,0,0,0.4);
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 14px;
     }
+
     #start-btn {
-      position:absolute; left:12px; bottom:12px; z-index:12;
-      padding:10px 14px; background:#1a73e8; color:white; border:none; border-radius:6px;
-      cursor:pointer; font-weight:600;
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      z-index: 12;
+      padding: 10px 14px;
+      background: #1a73e8;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
     }
-    html, body { margin:0; padding:0; height:100%; overflow:hidden; background:#000; }
-    #ar-container { position: fixed; top:0; left:0; width:100%; height:100%; overflow:hidden; }
-    canvas { position:absolute !important; top:0; left:0; width:100% !important; height:100% !important; }
   </style>
+
+  <!-- ES Module Shims -->
   <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.min.js"></script>
   <script type="importmap">
   {
@@ -59,6 +97,7 @@
 
       assertSecureContext();
 
+      // Initialize MindAR
       const mindarThree = new MindARThree({
         container: document.querySelector('#ar-container'),
         imageTargetSrc: './target.mind',
@@ -67,9 +106,13 @@
 
       const { renderer, scene, camera } = mindarThree;
 
-      // Basic lighting
-      const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+      // Lighting for 3D model
+      const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
       scene.add(light);
+
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      directionalLight.position.set(0, 1, 1);
+      scene.add(directionalLight);
 
       // Anchor for the target
       const anchor = mindarThree.addAnchor(0);
@@ -81,21 +124,25 @@
 
       const loader = new GLTFLoader();
       loader.load(
-        './model1.glb', // put your animated GLB file here
+        './model1.glb', // your animated GLB
         (gltf) => {
           model = gltf.scene;
-          model.scale.set(0.3, 0.3, 0.3);
-          model.rotation.y = Math.PI;
+
+          // --- FIX MOBILE POSITIONING & SCALE ---
+          model.scale.set(0.25, 0.25, 0.25); // adjust to fit target nicely
+          model.position.set(0, 0, 0);      // center on image target
+          model.rotation.set(0, Math.PI, 0); // face camera
           model.visible = false;
+
           anchor.group.add(model);
 
-          // Check if there are animations
+          // Setup animation mixer
           if (gltf.animations && gltf.animations.length) {
             mixer = new THREE.AnimationMixer(model);
             gltf.animations.forEach((clip) => {
               const action = mixer.clipAction(clip);
               action.play();
-              action.loop = THREE.LoopRepeat; // continuous loop
+              action.loop = THREE.LoopRepeat; // continuous animation
             });
           }
         },
@@ -105,7 +152,7 @@
         }
       );
 
-      // Show/hide model when target found/lost
+      // Show/hide model on target detection
       anchor.onTargetFound = () => {
         console.log('[AR] Target found');
         if (model) model.visible = true;
@@ -115,11 +162,12 @@
         if (model) model.visible = false;
       };
 
-      // Start engine
+      // Start AR engine
       await mindarThree.start();
+
       renderer.setAnimationLoop(() => {
         const delta = clock.getDelta();
-        if (mixer) mixer.update(delta); // updates animation
+        if (mixer) mixer.update(delta); // update animation
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.render(scene, camera);
