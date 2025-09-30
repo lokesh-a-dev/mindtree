@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -67,6 +67,173 @@
       renderer.setAnimationLoop(() => {
         renderer.render(scene, camera);
       });
+    });
+  </script>
+</body>
+</html> -->
+
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>MindAR — Play Video on Image Match</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html,body { height:100%; margin:0; background:#000; font-family:Arial,Helvetica,sans-serif; }
+    #ar-container { width:100%; height:100vh; overflow:hidden; position:relative; }
+    #fallback {
+      position:absolute; left:12px; top:12px; z-index:12; color:white;
+      background: rgba(0,0,0,0.4); padding:8px 10px; border-radius:6px;
+      font-size:14px;
+    }
+    #start-btn {
+      position:absolute; left:12px; bottom:12px; z-index:12;
+      padding:10px 14px; background:#1a73e8; color:white; border:none; border-radius:6px;
+      cursor:pointer; font-weight:600;
+    }
+    /* Hide the HTML video element (we use it as a texture) */
+    video#sampleVideo { display:none; }
+  </style>
+</head>
+<body>
+  <div id="ar-container">
+    <div id="fallback">Point your camera at the printed/phone image target to play the video.</div>
+    <button id="start-btn">Start AR</button>
+  </div>
+
+  <!-- The physical video file in same folder -->
+  <video id="sampleVideo" playsinline webkit-playsinline loop muted crossorigin="anonymous">
+    <source src="sample-video.mp4" type="video/mp4">
+    Your browser does not support HTML5 video.
+  </video>
+
+  <!-- Three.js and MindAR (module) -->
+   <script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+    "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+  }
+}
+</script>
+  <script type="module">
+    // import * as THREE from 'https://unpkg.com/three@0.152.2/build/three.module.js';
+    // import { MindARThree } from 'https://cdn.jsdelivr.net/npm/mind-ar@1.1.5/dist/mindar-image-three.prod.js';
+     import * as THREE from 'three';
+  import { MindARThree } from 'mindar-image-three';
+
+    const startBtn = document.getElementById('start-btn');
+    const videoEl = document.getElementById('sampleVideo');
+
+    async function startAR() {
+      startBtn.disabled = true;
+      startBtn.innerText = 'Starting...';
+
+      // Create MindAR instance
+      const mindarThree = new MindARThree({
+        container: document.querySelector("#ar-container"),
+        imageTargetSrc: './target.mind', // <- change if your mind file has a different name
+        maxTrack: 1, // track one target at a time
+      });
+
+      const { renderer, scene, camera } = mindarThree;
+
+      // Add some ambient light so the video plane isn't pitch black (optional)
+      const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+      scene.add(light);
+
+      // Prepare HTML video (used as texture)
+      // To satisfy autoplay policies, video is muted by default. You can unmute on user gesture.
+      videoEl.muted = true;
+      videoEl.loop = false; // we'll handle loop manually if desired
+      await videoEl.load();
+
+      // Create a VideoTexture using THREE
+      const texture = new THREE.VideoTexture(videoEl);
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+      texture.format = THREE.RGBAFormat;
+
+      // Create a plane to show video. Size: adjust based on your target image's physical size.
+      // If your target was created with a width of 1 unit, keep plane of width 1.
+      const planeGeometry = new THREE.PlaneGeometry(1, 0.56); // 16:9 approx (adjust if needed)
+      const planeMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+      const planeMesh = new THREE.Mesh(planeGeometry, planeMaterial);
+
+      // Place the plane so it sits above the target (z positive moves towards camera),
+      // and rotate it to face camera if needed.
+      planeMesh.position.set(0, 0, 0);
+      planeMesh.visible = false; // hide until target found
+
+      // Add anchor for target index 0 (first target in your .mind)
+      const anchor = mindarThree.addAnchor(0);
+      anchor.group.add(planeMesh);
+
+      // Optionally scale/position the plane if you want different placement:
+      // planeMesh.position.set(0, 0, 0.01); // slight offset to avoid z-fighting
+
+      // Event handlers for when target found / lost
+      anchor.onTargetFound = () => {
+        console.log("target found");
+        planeMesh.visible = true;
+
+        // Restart video from beginning and play
+        try {
+          videoEl.currentTime = 0;
+        } catch (e) { /* some browsers restrict currentTime before play */ }
+
+        // Attempt to play video. If browser blocks, user may need to interact/unmute.
+        const playPromise = videoEl.play();
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            console.log("video play started");
+          }).catch((err) => {
+            console.warn("video play blocked (user gesture required).", err);
+            // Optionally show UI instructing the user to tap to enable audio/playback.
+            // We'll unmute automatically if user clicks anywhere on screen later.
+          });
+        }
+      };
+
+      anchor.onTargetLost = () => {
+        console.log("target lost");
+        planeMesh.visible = false;
+        try {
+          videoEl.pause();
+          videoEl.currentTime = 0;
+        } catch(e) {}
+      };
+
+      // Start MindAR engine
+      await mindarThree.start();
+      renderer.setAnimationLoop(() => {
+        renderer.render(scene, camera);
+      });
+
+      // Update UI
+      startBtn.style.display = 'none';
+      document.getElementById('fallback').style.display = 'none';
+
+      // Helpful: allow user to unmute the video by clicking once
+      window.addEventListener('click', () => {
+        if (videoEl.muted) {
+          videoEl.muted = false;
+          console.log("Video unmuted by user click.");
+        }
+      }, { once: true });
+    }
+
+    startBtn.addEventListener('click', async () => {
+      try {
+        await startAR();
+      } catch (err) {
+        console.error("Error starting AR:", err);
+        alert("Could not start the camera or AR engine.\nMake sure you're on http://localhost or https and that your device has a camera.\n\nError: " + err.message);
+        startBtn.disabled = false;
+        startBtn.innerText = 'Start AR';
+      }
     });
   </script>
 </body>
