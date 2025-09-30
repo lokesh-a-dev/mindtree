@@ -94,41 +94,41 @@
       // Anchor for the target
       const anchor = mindarThree.addAnchor(0);
 
-      // Load 3D model
-      let model = null;
-      const loader = new GLTFLoader();
-      loader.load(
-        './mode.glb',   // put your model.glb in the same folder
-        (gltf) => {
-          model = gltf.scene;
-          model.scale.set(0.3, 0.3, 0.3);  // adjust size
-          model.rotation.y = Math.PI;       // optional rotation
-          model.visible = false;
-          anchor.group.add(model);
-        },
-        undefined,
-        (error) => {
-          console.error('[AR] Model loading error:', error);
-        }
-      );
+      // let model = null;
+let mixer = null;  // Animation mixer
+const clock = new THREE.Clock();
 
-      // Show/hide model when target found/lost
-      anchor.onTargetFound = () => {
-        console.log('[AR] Target found');
-        if (model) model.visible = true;
-      };
-      anchor.onTargetLost = () => {
-        console.log('[AR] Target lost');
-        if (model) model.visible = false;
-      };
+loader.load(
+  './animated_model.glb', // your animated GLB
+  (gltf) => {
+    model = gltf.scene;
+    model.scale.set(0.3, 0.3, 0.3);
+    model.visible = false;
+    anchor.group.add(model);
 
-      // Start engine
-      await mindarThree.start();
-      renderer.setAnimationLoop(() => {
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.render(scene, camera);
+    // Setup animations if present
+    if (gltf.animations && gltf.animations.length) {
+      mixer = new THREE.AnimationMixer(model);
+      gltf.animations.forEach((clip) => {
+        const action = mixer.clipAction(clip);
+        action.play();      // start animation immediately
+        action.loop = THREE.LoopRepeat; // loop continuously
       });
+    }
+  },
+  undefined,
+  (error) => {
+    console.error('[AR] Model loading error:', error);
+  }
+);
+
+// In your render loop, update mixer
+renderer.setAnimationLoop(() => {
+  const delta = clock.getDelta();
+  if (mixer) mixer.update(delta);   // updates animation
+  renderer.render(scene, camera);
+});
+
 
       // Hide UI
       startBtn.style.display = 'none';
