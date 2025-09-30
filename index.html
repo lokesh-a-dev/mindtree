@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>MindAR — Play Video on Image Match</title>
+  <title>MindAR — Show 3D Model on Image</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="origin-trial" content="">
   <style>
@@ -18,35 +18,29 @@
       padding:10px 14px; background:#1a73e8; color:white; border:none; border-radius:6px;
       cursor:pointer; font-weight:600;
     }
-    video#sampleVideo { display:none; }
-
     html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  overflow: hidden;
-  background: #000;
-}
-
-#ar-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-canvas {
-  position: absolute !important;
-  top: 0;
-  left: 0;
-  width: 100% !important;
-  height: 100% !important;
-}
-
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+    #ar-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    canvas {
+      position: absolute !important;
+      top: 0;
+      left: 0;
+      width: 100% !important;
+      height: 100% !important;
+    }
   </style>
-   Use jsDelivr to avoid unpkg QUIC issues and add import-map shim for broader support 
   <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.min.js"></script>
   <script type="importmap">
   {
@@ -60,22 +54,16 @@ canvas {
 </head>
 <body>
   <div id="ar-container">
-    <div id="fallback">Point your camera at the image target to play the video.</div>
+    <div id="fallback">Point your camera at the image target to show the 3D model.</div>
     <button id="start-btn">Start AR</button>
   </div>
-
-   Local video file (place sample-video.mp4 next to this HTML) 
-  <video id="sampleVideo" playsinline webkit-playsinline loop muted crossorigin="anonymous">
-    <source src="sample-video.mp4" type="video/mp4">
-    Your browser does not support HTML5 video.
-  </video>
 
   <script type="module">
     import * as THREE from 'three';
     import { MindARThree } from 'mindar-image-three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
     const startBtn = document.getElementById('start-btn');
-    const videoEl = document.getElementById('sampleVideo');
 
     function assertSecureContext() {
       const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
@@ -91,15 +79,9 @@ canvas {
 
       assertSecureContext();
 
-      // Prepare HTML video as texture
-      videoEl.muted = true;
-      videoEl.loop = false; // we’ll reset on target found
-      // videoEl.load(); // not strictly necessary; ensure <source> is correct
-
-      // MindAR setup
       const mindarThree = new MindARThree({
         container: document.querySelector('#ar-container'),
-        imageTargetSrc: './target.mind', // ensure this file exists next to index.html
+        imageTargetSrc: './target.mind', // your target file
         maxTrack: 1,
       });
 
@@ -109,37 +91,35 @@ canvas {
       const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
       scene.add(light);
 
-      // Video texture
-      const texture = new THREE.VideoTexture(videoEl);
-      texture.minFilter = THREE.LinearFilter;
-      texture.magFilter = THREE.LinearFilter;
-
-      // Plane sized roughly 16:9; adjust to match your target’s design
-      const planeGeometry = new THREE.PlaneGeometry(1, 0.5625);
-      const planeMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-      const planeMesh = new THREE.Mesh(planeGeometry, planeMaterial);
-      planeMesh.visible = false;
-
-      // Anchor on first target
+      // Anchor for the target
       const anchor = mindarThree.addAnchor(0);
-      anchor.group.add(planeMesh);
 
-      anchor.onTargetFound = () => {
-        console.log('[AR] target found');
-        planeMesh.visible = true;
-        try { videoEl.currentTime = 0; } catch {}
-        const p = videoEl.play();
-        if (p && typeof p.catch === 'function') {
-          p.catch((err) => {
-            console.warn('[AR] Autoplay blocked; waiting for user gesture to unmute/play.', err);
-          });
+      // Load 3D model
+      let model = null;
+      const loader = new GLTFLoader();
+      loader.load(
+        './model.glb',   // put your model.glb in the same folder
+        (gltf) => {
+          model = gltf.scene;
+          model.scale.set(0.3, 0.3, 0.3);  // adjust size
+          model.rotation.y = Math.PI;       // optional rotation
+          model.visible = false;
+          anchor.group.add(model);
+        },
+        undefined,
+        (error) => {
+          console.error('[AR] Model loading error:', error);
         }
-      };
+      );
 
+      // Show/hide model when target found/lost
+      anchor.onTargetFound = () => {
+        console.log('[AR] Target found');
+        if (model) model.visible = true;
+      };
       anchor.onTargetLost = () => {
-        console.log('[AR] target lost');
-        planeMesh.visible = false;
-        try { videoEl.pause(); videoEl.currentTime = 0; } catch {}
+        console.log('[AR] Target lost');
+        if (model) model.visible = false;
       };
 
       // Start engine
@@ -147,7 +127,6 @@ canvas {
       renderer.setAnimationLoop(() => {
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
-
         renderer.render(scene, camera);
       });
 
@@ -155,14 +134,6 @@ canvas {
       startBtn.style.display = 'none';
       const fb = document.getElementById('fallback');
       if (fb) fb.style.display = 'none';
-
-      // Allow one-tap unmute on iOS/Android if needed
-      window.addEventListener('click', () => {
-        if (videoEl.muted) {
-          videoEl.muted = false;
-          console.log('[AR] Video unmuted by user.');
-        }
-      }, { once: true });
     }
 
     startBtn.addEventListener('click', async () => {
