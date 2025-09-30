@@ -2,341 +2,154 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Camera Preview</title>
+  <title>MindAR — Play Video on Image Match</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="origin-trial" content="">
   <style>
-    :root {
-      --bg: #f6f7f9;
-      --card: #ffffff;
-      --border: #e5e7eb;
-      --text: #111827;
-      --muted: #6b7280;
-      --btn: #111111;
-      --btn-text: #ffffff;
-      --radius: 12px;
+    html,body { height:100%; margin:0; background:#000; font-family:Arial,Helvetica,sans-serif; }
+    #ar-container { width:100%; height:100vh; overflow:hidden; position:relative; }
+    #fallback {
+      position:absolute; left:12px; top:12px; z-index:12; color:white;
+      background: rgba(0,0,0,0.4); padding:8px 10px; border-radius:6px;
+      font-size:14px;
     }
-    * { box-sizing: border-box; }
-    html, body { height: 100%; }
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-      line-height: 1.5;
+    #start-btn {
+      position:absolute; left:12px; bottom:12px; z-index:12;
+      padding:10px 14px; background:#1a73e8; color:white; border:none; border-radius:6px;
+      cursor:pointer; font-weight:600;
     }
-    main {
-      min-height: 100%;
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
-      padding: 32px 16px;
-    }
-    .card {
-      width: 100%;
-      max-width: 720px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-      padding: 24px;
-    }
-    h1 {
-      font-size: 24px;
-      line-height: 1.25;
-      margin: 0 0 8px 0;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-    }
-    p.desc {
-      margin: 0 0 16px 0;
-      color: var(--muted);
-    }
-    .preview {
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      background: #000;
-      border-radius: 12px;
-      overflow: hidden;
-      border: 1px solid var(--border);
-    }
-    video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      background: #000;
-      display: block;
-    }
-    .controls {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-top: 16px;
-      flex-wrap: wrap;
-    }
-    button {
-      background: var(--btn);
-      color: var(--btn-text);
-      border: none;
-      padding: 10px 16px;
-      border-radius: 10px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    button:disabled { opacity: 0.6; cursor: not-allowed; }
-    .select-wrap {
-      margin-left: auto;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    label {
-      color: var(--muted);
-      font-size: 14px;
-    }
-    select {
-      appearance: none;
-      border: 1px solid var(--border);
-      background: #fff;
-      padding: 8px 12px;
-      border-radius: 10px;
-      font-size: 14px;
-      min-width: 220px;
-    }
-    ul.hints {
-      margin: 12px 0 0 0;
-      padding-left: 18px;
-      color: var(--muted);
-      font-size: 14px;
-    }
-    .status {
-      margin-top: 8px;
-      color: var(--muted);
-      font-size: 14px;
-      min-height: 20px;
-    }
-    .error { color: #b91c1c; }
-    .sr-only {
-      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
-    }
+    video#sampleVideo { display:none; }
   </style>
+   Use jsDelivr to avoid unpkg QUIC issues and add import-map shim for broader support 
+  <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.min.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+      "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+    }
+  }
+  </script>
 </head>
 <body>
-  <main>
-    <section class="card" aria-labelledby="title">
-      <h1 id="title">Camera Preview</h1>
-      <p class="desc">Start the camera to test permissions and device compatibility on desktop and mobile.</p>
+  <div id="ar-container">
+    <div id="fallback">Point your camera at the image target to play the video.</div>
+    <button id="start-btn">Start AR</button>
+  </div>
 
-      <div class="preview" aria-label="Camera preview area">
-        <video id="preview" playsinline webkit-playsinline muted></video>
-      </div>
+   Local video file (place sample-video.mp4 next to this HTML) 
+  <video id="sampleVideo" playsinline webkit-playsinline loop muted crossorigin="anonymous">
+    <source src="sample-video.mp4" type="video/mp4">
+    Your browser does not support HTML5 video.
+  </video>
 
-      <div class="controls">
-        <button id="startBtn" type="button">Start Camera</button>
+  <script type="module">
+    import * as THREE from 'three';
+    import { MindARThree } from 'mindar-image-three';
 
-        <div class="select-wrap">
-          <label for="deviceSelect">Camera</label>
-          <select id="deviceSelect" aria-label="Select camera device">
-            <option value="" disabled selected>No cameras detected</option>
-          </select>
-        </div>
-      </div>
+    const startBtn = document.getElementById('start-btn');
+    const videoEl = document.getElementById('sampleVideo');
 
-      <div id="status" class="status" role="status" aria-live="polite"></div>
-
-      <ul class="hints">
-        <li>Tap “Start Camera” to satisfy mobile autoplay/permission requirements.</li>
-        <li>Use https or http://localhost for camera access to work.</li>
-        <li>On iOS, ensure Safari has Camera permission enabled in Settings.</li>
-      </ul>
-    </section>
-  </main>
-
-  <script>
-    (function () {
-      const video = document.getElementById('preview');
-      const startBtn = document.getElementById('startBtn');
-      const deviceSelect = document.getElementById('deviceSelect');
-      const statusEl = document.getElementById('status');
-
-      /** Keep track of current stream so we can stop it when switching devices */
-      let currentStream = null;
-
-      function setStatus(msg, isError = false) {
-        statusEl.textContent = msg || '';
-        statusEl.classList.toggle('error', !!isError);
-        if (msg) console.log('[v0] Status:', msg);
+    function assertSecureContext() {
+      const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+      const isSecure = location.protocol === 'https:';
+      if (!isSecure && !isLocalhost) {
+        throw new Error('Camera requires https or http://localhost');
       }
+    }
 
-      function isSecure() {
-        const host = location.hostname;
-        return location.protocol === 'https:' || host === 'localhost' || host === '127.0.0.1';
-      }
+    async function startAR() {
+      startBtn.disabled = true;
+      startBtn.textContent = 'Starting...';
 
-      function assertSupport() {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          throw new Error('Camera API not supported in this browser.');
-        }
-        if (!isSecure()) {
-          throw new Error('Camera requires https or http://localhost.');
-        }
-      }
+      assertSecureContext();
 
-      async function stopStream() {
-        if (currentStream) {
-          currentStream.getTracks().forEach((t) => t.stop());
-          currentStream = null;
-        }
-        if ('srcObject' in video) {
-          video.srcObject = null;
-        } else {
-          video.src = '';
-        }
-        try { await video.pause(); } catch {}
-      }
+      // Prepare HTML video as texture
+      videoEl.muted = true;
+      videoEl.loop = false; // we’ll reset on target found
+      // videoEl.load(); // not strictly necessary; ensure <source> is correct
 
-      async function listCameras() {
-        try {
-          const devices = await navigator.mediaDevices.enumerateDevices();
-          const cams = devices.filter(d => d.kind === 'videoinput');
-          deviceSelect.innerHTML = '';
-          if (cams.length === 0) {
-            const opt = document.createElement('option');
-            opt.value = '';
-            opt.textContent = 'No cameras detected';
-            deviceSelect.appendChild(opt);
-            deviceSelect.disabled = true;
-            return;
-          }
-          cams.forEach((cam, idx) => {
-            const opt = document.createElement('option');
-            opt.value = cam.deviceId || '';
-            // Label may be empty until permission is granted
-            opt.textContent = cam.label || `Camera ${idx + 1}`;
-            deviceSelect.appendChild(opt);
+      // MindAR setup
+      const mindarThree = new MindARThree({
+        container: document.querySelector('#ar-container'),
+        imageTargetSrc: './target.mind', // ensure this file exists next to index.html
+        maxTrack: 1,
+      });
+
+      const { renderer, scene, camera } = mindarThree;
+
+      // Basic lighting
+      const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+      scene.add(light);
+
+      // Video texture
+      const texture = new THREE.VideoTexture(videoEl);
+      texture.minFilter = THREE.LinearFilter;
+      texture.magFilter = THREE.LinearFilter;
+
+      // Plane sized roughly 16:9; adjust to match your target’s design
+      const planeGeometry = new THREE.PlaneGeometry(1, 0.5625);
+      const planeMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+      const planeMesh = new THREE.Mesh(planeGeometry, planeMaterial);
+      planeMesh.visible = false;
+
+      // Anchor on first target
+      const anchor = mindarThree.addAnchor(0);
+      anchor.group.add(planeMesh);
+
+      anchor.onTargetFound = () => {
+        console.log('[AR] target found');
+        planeMesh.visible = true;
+        try { videoEl.currentTime = 0; } catch {}
+        const p = videoEl.play();
+        if (p && typeof p.catch === 'function') {
+          p.catch((err) => {
+            console.warn('[AR] Autoplay blocked; waiting for user gesture to unmute/play.', err);
           });
-          deviceSelect.disabled = false;
-        } catch (e) {
-          console.warn('[v0] enumerateDevices failed:', e);
-          deviceSelect.innerHTML = '<option value=\"\">Unable to list cameras</option>';
-          deviceSelect.disabled = true;
         }
-      }
+      };
 
-      function buildConstraints(deviceId) {
-        // Prefer rear camera on mobile by default; fall back gracefully
-        const videoConstraints = deviceId
-          ? { deviceId: { exact: deviceId } }
-          : {
-              facingMode: { ideal: 'environment' },
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
-            };
-        return { audio: false, video: videoConstraints };
-      }
+      anchor.onTargetLost = () => {
+        console.log('[AR] target lost');
+        planeMesh.visible = false;
+        try { videoEl.pause(); videoEl.currentTime = 0; } catch {}
+      };
 
-      async function startCamera(deviceId) {
-        assertSupport();
-        setStatus('Requesting camera permission…');
-
-        await stopStream();
-
-        // iOS/Safari-friendly flags
-        video.muted = true;
-        video.setAttribute('muted', '');
-        video.setAttribute('playsinline', '');
-        video.playsInline = true;
-
-        let stream;
-        try {
-          stream = await navigator.mediaDevices.getUserMedia(buildConstraints(deviceId));
-        } catch (err) {
-          console.warn('[v0] First getUserMedia failed, trying fallback:', err);
-          // Fallbacks: try generic camera, then user-facing
-          try {
-            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-          } catch (err2) {
-            try {
-              stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
-            } catch (err3) {
-              console.error('[v0] All camera attempts failed:', err3);
-              setStatus('Could not start camera. Please allow permission and ensure a camera is available.', true);
-              throw err3;
-            }
-          }
-        }
-
-        currentStream = stream;
-        try {
-          if ('srcObject' in video) {
-            video.srcObject = stream;
-          } else {
-            video.src = URL.createObjectURL(stream);
-          }
-          await video.play().catch(() => {}); // tolerate autoplay quirks
-        } catch (e) {
-          console.warn('[v0] Video play failed:', e);
-        }
-
-        // After permission, labels become available—refresh device list
-        await listCameras();
-
-        // Keep the selected option in sync if possible
-        if (deviceId) {
-          for (const opt of deviceSelect.options) {
-            if (opt.value === deviceId) {
-              deviceSelect.value = deviceId;
-              break;
-            }
-          }
-        }
-        setStatus('Camera started.');
-      }
-
-      // Event wiring
-      startBtn.addEventListener('click', async () => {
-        startBtn.disabled = true;
-        setStatus('');
-        try {
-          const chosen = deviceSelect.value || '';
-          await startCamera(chosen);
-        } catch (e) {
-          setStatus(e && e.message ? e.message : 'Failed to start camera.', true);
-        } finally {
-          // Re-enable so the user can retry or switch devices
-          startBtn.disabled = false;
-        }
+      // Start engine
+      await mindarThree.start();
+      renderer.setAnimationLoop(() => {
+        renderer.render(scene, camera);
       });
 
-      deviceSelect.addEventListener('change', async (e) => {
-        const chosen = e.target.value || '';
-        if (currentStream) {
-          // If already running, switch immediately
-          try {
-            await startCamera(chosen);
-          } catch {}
-        }
-      });
+      // Hide UI
+      startBtn.style.display = 'none';
+      const fb = document.getElementById('fallback');
+      if (fb) fb.style.display = 'none';
 
-      // Initial checks and populate device list (labels may be blank until permission)
-      (async function init() {
-        if (!isSecure()) {
-          setStatus('Open over https or http://localhost to use the camera.', true);
+      // Allow one-tap unmute on iOS/Android if needed
+      window.addEventListener('click', () => {
+        if (videoEl.muted) {
+          videoEl.muted = false;
+          console.log('[AR] Video unmuted by user.');
         }
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          setStatus('Camera API not supported in this browser.', true);
-          startBtn.disabled = true;
-          return;
-        }
-        await listCameras();
-      })();
+      }, { once: true });
+    }
 
-      // Clean up on page hide/unload to free the camera
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden') stopStream();
-      });
-      window.addEventListener('beforeunload', () => stopStream());
-    })();
+    startBtn.addEventListener('click', async () => {
+      try {
+        await startAR();
+      } catch (err) {
+        console.error('[AR] Start error:', err);
+        alert(
+          'Could not start the camera or AR engine.\n' +
+          'Use https or http://localhost and allow camera access.\n\n' +
+          'Error: ' + (err?.message || err)
+        );
+        startBtn.disabled = false;
+        startBtn.textContent = 'Start AR';
+      }
+    });
   </script>
 </body>
 </html>
